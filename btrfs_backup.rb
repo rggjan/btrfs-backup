@@ -1,6 +1,8 @@
 #!/usr/bin/ruby1.9.1
+require 'fileutils'
 
-def get_list(list)
+def get_list()
+  list = Dir[@dir + "/self_backups/*"]
   for i in 0...list.size
     tmp = list[i].split("-backup.")
     raise @dir + list[i] + " has wrong format!" if tmp.size != 2
@@ -31,6 +33,40 @@ def get_delete_name(dirlist)
   return a + "-backup." + b.to_s
 end
 
-puts "Listing #{ARGV[0]}"
-dirlist = get_list(Dir[ARGV[0] + "/*"])
-puts get_delete_name(dirlist)
+def increment_names()
+  dirlist = get_list()
+  dirlist.reverse.each do |element|
+    original=@dir.to_s+element[1].to_s+"-backup."+element[0].to_s
+    incremented=@dir.to_s+element[1].to_s+"-backup."+(element[0]+1).to_s
+    FileUtils.move(original, incremented)
+  end
+end
+
+def backup()
+  system("btrfsctl -s #{@dir}/self_backups/`date +%F`-backup.0 #{@dir}")
+end
+
+args = ARGV.reverse
+backup_dir = nil
+commands = 0;
+while args.size > 0
+  argument = args.pop
+  case argument
+  when "--backup"
+    backup_dir = args.pop
+    commands += 1
+  else
+    puts "Unknown argument '#{argument}'!"
+    exit
+  end
+end
+
+unless backup_dir.nil?
+  @dir = backup_dir
+  raise if @dir.size < 1
+  puts "Backing up #{@dir}"
+  increment_names()
+  backup()
+end
+
+#puts get_delete_name(dirlist)
