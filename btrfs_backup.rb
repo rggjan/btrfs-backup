@@ -48,25 +48,37 @@ end
 
 args = ARGV.reverse
 backup_dir = nil
-commands = 0;
+commands = Array.new
+
 while args.size > 0
   argument = args.pop
   case argument
   when "--backup"
-    backup_dir = args.pop
-    commands += 1
+    commands << :backup
   else
-    puts "Unknown argument '#{argument}'!"
-    exit
+    if backup_dir.nil?
+      backup_dir = argument
+    else
+      puts "Unknown argument '#{argument}'!"
+      exit
+    end
   end
 end
 
-unless backup_dir.nil?
-  @dir = backup_dir
-  raise if @dir.size < 1
-  puts "Backing up #{@dir}"
-  increment_names()
-  backup()
+if commands.size == 0
+  puts "Usage: ./btrfs_backup [--backup] /root/path"
+else
+  if commands.include?(:backup)
+    if backup_dir.nil?
+      raise "No backup directory!"
+    else
+      @dir = backup_dir
+      raise if @dir.size < 1
+      puts "Backing up #{@dir}"
+      increment_names()
+      backup()
+    end
+  end
 end
 
 #puts get_delete_name(dirlist)
