@@ -25,4 +25,11 @@ class TestBtrfsBackup < Test::Unit::TestCase
   end
 
 
+  def test_execute
+    assert_raise_message("Wrong return value") do
+      execute("ls /utirane")
+    end
+  end
+
+
 end

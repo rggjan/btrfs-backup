@@ -50,8 +50,8 @@ end
 def increment_names()
   dirlist = get_list()
   dirlist.reverse.each do |element|
-    original="#{@destination_dir}/#{element[1]}-backup.#{element[0]}"
-    incremented="#{@destination_dir}/#{element[1]}-backup.#{element[0]+1}"
+    original="#{self_backup_dir}#{element[1]}-backup.#{element[0]}"
+    incremented="#{self_backup_dir}#{element[1]}-backup.#{element[0]+1}"
     FileUtils.move(original, incremented)
   end
 end
@@ -73,13 +73,18 @@ def execute(command)
     ensure
       system("stty -raw echo")
     end
+    raise "Wrong return value" unless $?.success?
+
     answer = answer.downcase
 
     p answer
 
     case answer
-      when "n", "\u0003"
-        puts "Not executing command, exit..."
+      when "n"
+        puts "Not executing command..."
+        return
+      when "\u0003"
+        puts "Not executing command... Exit..."
         exit
       when "y", "\r"
         system(command)
@@ -94,7 +99,7 @@ def self_backup_dir
   if @destination_dir == "/"
     return "/self_backups"
   else
-    return @destinatination_dir + "/self_backups"
+    return @destination_dir + "/self_backups/"
   end
 end
 
@@ -148,12 +153,12 @@ if __FILE__ == $0
         
         options = "rsync --archive --one-file-system --hard-links --inplace --numeric-ids --progress --verbose --delete --exclude=/self_backups"
         options += additional_options
-        options += " #{@dir} #{@destination_dir}"
-        system()
+        options += " #{@source_dir} #{@destination_dir}/backups/`hostname`"
+        execute(options)
       end
 
       puts "\n#{GREEN}Snapshotting #{self_backup_dir}#{WHITE}"
-      execute("btrfsctl -s #{self_backup_dir}/`date +%F`-backup.0 #{@destination_dir}")
+      execute("btrfsctl -s #{self_backup_dir}`date +%F`-backup.0 #{@destination_dir}")
       increment_names()
     end
 
