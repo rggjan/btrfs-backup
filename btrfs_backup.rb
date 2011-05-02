@@ -15,11 +15,11 @@ def check_directory(directory_name)
 end
 
 def get_list()
-  list = Dir.entries(@destination_dir) - [".", ".."]
+  list = Dir.entries(self_backup_dir) - [".", ".."]
   for i in 0...list.size
     tmp = list[i].split("-backup.")
-    raise @destination_dir + list[i] + " has wrong format!" if tmp.size != 2
-    raise @destination_dir + list[i] + " has wrong format in number!" if tmp[1].to_i.to_s != tmp[1]
+    raise self_backup_dir + list[i] + " has wrong format!" if tmp.size != 2
+    raise self_backup_dir + list[i] + " has wrong format in number!" if tmp[1].to_i.to_s != tmp[1]
 
     list[i]=[tmp[1].to_i, tmp[0]] # Converts "12-34-56-backup.7" to an Array entry [7, 12-34-56].
   end
@@ -90,6 +90,14 @@ def execute(command)
   end
 end
 
+def self_backup_dir
+  if @destination_dir == "/"
+    return "/self_backups"
+  else
+    return @destinatination_dir + "/self_backups"
+  end
+end
+
 ####################
 # Begin of Program #
 ####################
@@ -111,6 +119,8 @@ if __FILE__ == $0
       commands << :backup
     when "--delete"
       commands << :delete
+    when "--status"
+      commands << :status
     else
       leftover_args << argument
     end
@@ -119,39 +129,20 @@ if __FILE__ == $0
   if leftover_args.size > 2
     raise "Unknown argument '#{leftover_args[0]}'"
   end
+  
+  if leftover_args.size < 1
+    leftover_args = ["/"]
+  end
 
   @destination_dir = check_directory(leftover_args.pop)
   @source_dir = check_directory(leftover_args.pop) if leftover_args.size > 0
-
-
-      if @source_dir.nil?
-        @source_dir = argument
-
-        # Cut off trailing "/" unless is root dir
-        if @source_dir[-1] == "/" and @source_dir != "/"
-          @source_dir = @source_dir[0...-1]
-        end
-      else
-        if @destination_dir.nil?
-          @destination_dir = argument + "/self_backups"
-          @destination_dir.gsub!("//","/")
-        else
-          puts "Unknown argument '#{argument}'!"
-          exit
-        end
-      end
-
-  if @destination_dir.nil?
-    @destination_dir = @dir
-    @dir = nil
-  end
 
   if commands.size == 0
     puts "Usage: ./btrfs_backup [--backup] [--delete] [/source/path] /target/path"
   else
     if commands.include?(:backup)
-      unless @dir.nil?
-        puts "\n#{GREEN}Syncing from #{@dir} to #{@destination_dir}#{WHITE}"
+      unless @source_dir.nil?
+        puts "\n#{GREEN}Syncing from #{@source_dir} to #{@destination_dir}#{WHITE}"
         additional_options = ""
         additional_options = " --exclude=/self_backups" if @dir == "/"
         
@@ -160,27 +151,19 @@ if __FILE__ == $0
         options += " #{@dir} #{@destination_dir}"
         system()
       end
-      if @destination_dir.nil?
-        raise "No backup directory!"
-      else
-        puts "\n#{GREEN}Backing up to #{@destination_dir}#{WHITE}"
-        execute("btrfsctl -s #{@destination_dir}/`date +%F`-backup.0 #{@destination_dir}")
-        increment_names()
-      end
+
+      puts "\n#{GREEN}Snapshotting #{self_backup_dir}#{WHITE}"
+      execute("btrfsctl -s #{self_backup_dir}/`date +%F`-backup.0 #{@destination_dir}")
+      increment_names()
     end
 
     if commands.include?(:delete)
-      raise "Strange Arguments" unless @dir.nil?
-      if @destination_dir.nil?
-        raise "No backup directory!"
-      else
-        delete_name = get_delete_name()
-        puts "\n#{GREEN}Deleting #{delete_name}#{WHITE}"
-        execute("btrfsctl -D #{delete_name} #{@destination_dir}")
-      end
+      delete_name = get_delete_name()
+      puts "\n#{GREEN}Deleting #{delete_name}#{WHITE}"
+      execute("btrfsctl -D #{delete_name} #{self_backup_dir}/")
     end
 
-    puts "\n#{GREEN}Status#{WHITE}"
+    puts "\n#{GREEN}Status of #{@destination_dir}#{WHITE}"
     system("btrfs fi df #{@destination_dir}")
   end
 end
