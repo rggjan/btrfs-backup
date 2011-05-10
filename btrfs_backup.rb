@@ -2,12 +2,12 @@
 require 'fileutils'
 
 def check_directory(directory_name)
-  unless directory_name =~ /\A(([a-zA-Z]+@.+)?(\/[^\s\/]+)+\/?|\/)\z/
+  unless directory_name =~ /\A((([a-zA-Z]+@)?([0-9]{1,3}\.){3}[0-9]{1,3}:)?((\/[^\s\/]+)+\/?|\/))\z/
     raise "Wrong directory format '#{directory_name}'"
   end
 
   # Cut off trailing "/" unless is root dir
-  if directory_name[-1] == "/" and directory_name != "/"
+  if directory_name[-1] == "/" and directory_name != "/" and directory_name[-2] != ":"
     return directory_name[0...-1]
   end
 

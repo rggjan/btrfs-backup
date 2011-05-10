@@ -12,7 +12,7 @@ end
 class TestBtrfsBackup < Test::Unit::TestCase
 
   def test_check_directory
-    ["abc", "//abc", "//", "", "/ab c/", "/abc//de"].each do |directory|
+    ["abc", "//abc", "19.2.2:/", "@192.168.2.2:/jan", "//", "", "/ab c/", "/abc//de"].each do |directory|
       assert_raise_message("Wrong directory format '#{directory}'") do
         check_directory(directory)
       end
@@ -22,6 +22,9 @@ class TestBtrfsBackup < Test::Unit::TestCase
     assert_equal "/abc", check_directory("/abc")
     assert_equal "/abc", check_directory("/abc/")
     assert_equal "/abc_defGH/ij", check_directory("/abc_defGH/ij")
+    assert_equal "192.168.2.22:/", check_directory("192.168.2.22:/")
+    assert_equal "jan@192.168.2.22:/", check_directory("jan@192.168.2.22:/")
+    assert_equal "jan@192.168.2.22:/abc", check_directory("jan@192.168.2.22:/abc/")
   end
 
 
