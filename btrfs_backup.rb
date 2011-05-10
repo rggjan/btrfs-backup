@@ -2,7 +2,7 @@
 require 'fileutils'
 
 def check_directory(directory_name)
-  unless directory_name =~ /\A(\/[^\s\/]+)+\/?\z|\A\/\z/
+  unless directory_name =~ /\A(([a-zA-Z]+@.+)?(\/[^\s\/]+)+\/?|\/)\z/
     raise "Wrong directory format '#{directory_name}'"
   end
 
@@ -73,7 +73,6 @@ def execute(command)
     ensure
       system("stty -raw echo")
     end
-    raise "Wrong return value" unless $?.success?
 
     answer = answer.downcase
 
@@ -88,6 +87,8 @@ def execute(command)
         exit
       when "y", "\r"
         system(command)
+        raise "Wrong return value" unless $?.success?
+
         return
       else
         puts "Unknown answer..."
@@ -97,7 +98,7 @@ end
 
 def self_backup_dir
   if @destination_dir == "/"
-    return "/self_backups"
+    return "/self_backups/"
   else
     return @destination_dir + "/self_backups/"
   end
@@ -156,7 +157,8 @@ if __FILE__ == $0
         options += " #{@source_dir} #{@destination_dir}/backups/`hostname`"
         execute(options)
       end
-
+      
+      # TODO check if already -backup.0 there!
       puts "\n#{GREEN}Snapshotting #{self_backup_dir}#{WHITE}"
       execute("btrfsctl -s #{self_backup_dir}`date +%F`-backup.0 #{@destination_dir}")
       increment_names()
@@ -165,7 +167,7 @@ if __FILE__ == $0
     if commands.include?(:delete)
       delete_name = get_delete_name()
       puts "\n#{GREEN}Deleting #{delete_name}#{WHITE}"
-      execute("btrfsctl -D #{delete_name} #{self_backup_dir}/")
+      execute("btrfsctl -D #{delete_name} #{self_backup_dir}")
     end
 
     puts "\n#{GREEN}Status of #{@destination_dir}#{WHITE}"
