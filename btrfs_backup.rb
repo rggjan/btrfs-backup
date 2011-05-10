@@ -14,12 +14,13 @@ def check_directory(directory_name)
   return directory_name
 end
 
-def get_list()
+def get_list(params = {})
   list = Dir.entries(self_backup_dir) - [".", ".."]
   for i in 0...list.size
     tmp = list[i].split("-backup.")
     raise self_backup_dir + list[i] + " has wrong format!" if tmp.size != 2
     raise self_backup_dir + list[i] + " has wrong format in number!" if tmp[1].to_i.to_s != tmp[1]
+    raise self_backup_dir + list[i] + " is left over!" if tmp[1].to_i == 0 and not params[:can_have_zero]
 
     list[i]=[tmp[1].to_i, tmp[0]] # Converts "12-34-56-backup.7" to an Array entry [7, 12-34-56].
   end
@@ -27,6 +28,14 @@ def get_list()
   list.compact!
 
   return list
+end
+
+def check_backup_dir()
+  get_list().each do |num, name|
+    if (num == 0)
+      raise "Have directory with number '0' left!"
+    end
+  end
 end
 
 def get_delete_name()
@@ -48,7 +57,7 @@ def get_delete_name()
 end
 
 def increment_names()
-  dirlist = get_list()
+  dirlist = get_list(:can_have_zero => true)
   dirlist.reverse.each do |element|
     original="#{self_backup_dir}#{element[1]}-backup.#{element[0]}"
     incremented="#{self_backup_dir}#{element[1]}-backup.#{element[0]+1}"
@@ -60,7 +69,7 @@ RED="\033[1;31m"
 GREEN="\033[1;32m"
 WHITE="\033[0m"
 
-def execute(command)
+def execute(command, params = {})
   answer = "?"
 
   puts "Execute #{RED}#{command}#{WHITE}?"
@@ -87,7 +96,7 @@ def execute(command)
         exit
       when "y", "\r"
         system(command)
-        raise "Wrong return value" unless $?.success?
+        raise "Wrong return value #{$?}" unless $?.success? or params[:can_fail]
 
         return
       else
@@ -127,6 +136,10 @@ if __FILE__ == $0
       commands << :delete
     when "--status"
       commands << :status
+    when "--hostname"
+      commands << :hostname
+      @hostname = args.pop
+      raise "Wrong hostname '#{@hostname}'" unless @hostname =~ /\A[a-zA-Z0-9]+\z/
     else
       leftover_args << argument
     end
@@ -140,6 +153,7 @@ if __FILE__ == $0
     leftover_args = ["/"]
   end
 
+  @hostname = execute("hostname") if @hostname.nil? 
   @destination_dir = check_directory(leftover_args.pop)
   @source_dir = check_directory(leftover_args.pop) if leftover_args.size > 0
 
@@ -154,13 +168,15 @@ if __FILE__ == $0
         
         options = "rsync --archive --one-file-system --hard-links --inplace --numeric-ids --progress --verbose --delete --exclude=/self_backups"
         options += additional_options
-        options += " #{@source_dir} #{@destination_dir}/backups/`hostname`"
+        options += " #{@source_dir} #{@destination_dir}/backups/#{@hostname}"
         execute(options)
       end
       
       # TODO check if already -backup.0 there!
       puts "\n#{GREEN}Snapshotting #{self_backup_dir}#{WHITE}"
-      execute("btrfsctl -s #{self_backup_dir}`date +%F`-backup.0 #{@destination_dir}")
+      date = `date +%F`.strip
+      check_backup_dir()
+      execute("btrfsctl -s #{self_backup_dir}#{date}-backup.0 #{@destination_dir}", :can_fail => true) # TODO wrong btrfs
       increment_names()
     end
 
