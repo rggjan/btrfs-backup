@@ -7,8 +7,8 @@ def check_directory(directory_name)
   end
 
   # Cut off trailing "/" unless is root dir
-  if directory_name[-1] == "/" and directory_name != "/" and directory_name[-2] != ":"
-    return directory_name[0...-1]
+  if directory_name[-1] != "/"
+    return directory_name + "/"
   end
 
   return directory_name
@@ -106,11 +106,7 @@ def execute(command, params = {})
 end
 
 def self_backup_dir
-  if @destination_dir == "/"
-    return "/self_backups/"
-  else
-    return @destination_dir + "/self_backups/"
-  end
+  return @destination_dir + "self_backups/"
 end
 
 ####################
@@ -153,7 +149,7 @@ if __FILE__ == $0
     leftover_args = ["/"]
   end
 
-  @hostname = execute("hostname") if @hostname.nil? 
+  @hostname = `hostname` if @hostname.nil? 
   @destination_dir = check_directory(leftover_args.pop)
   @source_dir = check_directory(leftover_args.pop) if leftover_args.size > 0
 
@@ -168,7 +164,7 @@ if __FILE__ == $0
         
         options = "rsync --archive --one-file-system --hard-links --inplace --numeric-ids --progress --verbose --delete --exclude=/self_backups"
         options += additional_options
-        options += " #{@source_dir} #{@destination_dir}/backups/#{@hostname}"
+        options += " #{@source_dir} #{@destination_dir}backups/#{@hostname}"
         execute(options)
       end
       
@@ -183,10 +179,16 @@ if __FILE__ == $0
     if commands.include?(:delete)
       delete_name = get_delete_name()
       puts "\n#{GREEN}Deleting #{delete_name}#{WHITE}"
-      execute("btrfsctl -D #{delete_name} #{self_backup_dir}")
+      execute("btrfsctl -D #{delete_name} #{self_backup_dir}", :can_fail => true)
     end
 
     puts "\n#{GREEN}Status of #{@destination_dir}#{WHITE}"
     system("btrfs fi df #{@destination_dir}")
+
+    mount_name = @destination_dir
+    mount_name = mount_name[0...-1] unless mount_name[-1] != "/" or mount_name == "/"
+    mountpoint = `mount | grep "on #{mount_name} type btrfs"`.split(" ")[0]
+    puts "\n#{GREEN}Status of #{mountpoint}#{WHITE}"
+    system("btrfs fi show #{mountpoint}")
   end
 end
