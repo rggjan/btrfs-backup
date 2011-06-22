@@ -188,7 +188,8 @@ if __FILE__ == $0
     mount_name = @destination_dir
     mount_name = mount_name[0...-1] unless mount_name[-1] != "/" or mount_name == "/"
     mountpoint = `mount | grep "on #{mount_name} type btrfs"`.split(" ")[0]
-    puts "\n#{GREEN}Status of #{mountpoint}#{WHITE}"
-    system("btrfs fi show #{mountpoint}")
+    real_mountpoint = "/dev/" + `ls -l #{mountpoint}`.split(" ")[-1].split("/")[-1]
+    puts "\n#{GREEN}Status of #{real_mountpoint}#{WHITE}"
+    system("btrfs fi show #{real_mountpoint}")
   end
 end
