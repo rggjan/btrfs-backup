@@ -67,6 +67,8 @@ end
 
 RED="\033[1;31m"
 GREEN="\033[1;32m"
+YELLOW="\033[1;33m"
+BLUE="\033[1;34m"
 WHITE="\033[0m"
 
 def execute(command, params = {})
@@ -158,7 +160,7 @@ if __FILE__ == $0
   else
     if commands.include?(:backup)
       unless @source_dir.nil?
-        puts "\n#{GREEN}Syncing from #{@source_dir} to #{@destination_dir}#{WHITE}"
+        puts "\n#{BLUE}Syncing from #{@source_dir} to #{@destination_dir}#{WHITE}"
         additional_options = ""
         additional_options = " --exclude=/self_backups" if @dir == "/"
         
@@ -169,7 +171,7 @@ if __FILE__ == $0
       end
       
       # TODO check if already -backup.0 there!
-      puts "\n#{GREEN}Snapshotting #{self_backup_dir}#{WHITE}"
+      puts "\n#{BLUE}Snapshotting #{self_backup_dir}#{WHITE}"
       date = `date +%F`.strip
       check_backup_dir()
       execute("btrfsctl -s #{self_backup_dir}#{date}-backup.0 #{@destination_dir}", :can_fail => true) # TODO wrong btrfs
@@ -178,18 +180,31 @@ if __FILE__ == $0
 
     if commands.include?(:delete)
       delete_name = get_delete_name()
-      puts "\n#{GREEN}Deleting #{delete_name}#{WHITE}"
+      puts "\n#{BLUE}Deleting #{delete_name}#{WHITE}"
       execute("btrfsctl -D #{delete_name} #{self_backup_dir}", :can_fail => true)
     end
 
-    puts "\n#{GREEN}Status of #{@destination_dir}#{WHITE}"
-    system("btrfs fi df #{@destination_dir}")
+    # Status output
+    puts "\n#{BLUE}Status of #{@destination_dir}#{WHITE}"
+    stats = `btrfs fi df #{@destination_dir}`
+    puts stats
+    stats = stats.split("\n")
 
     mount_name = @destination_dir
     mount_name = mount_name[0...-1] unless mount_name[-1] != "/" or mount_name == "/"
     mountpoint = `mount | grep "on #{mount_name} type btrfs"`.split(" ")[0]
     real_mountpoint = "/dev/" + `ls -l #{mountpoint}`.split(" ")[-1].split("/")[-1]
-    puts "\n#{GREEN}Status of #{real_mountpoint}#{WHITE}"
+    puts "\n#{BLUE}Status of #{real_mountpoint}#{WHITE}"
     system("btrfs fi show #{real_mountpoint}")
+
+    free = `df -h #{mount_name}`.split("\n")[1].split[3]
+    used = stats[0].split("=")[-1][0..-2]
+    meta = stats[3].split("=")
+    meta_used = meta[-1]
+    meta_total = meta[-2].split(",")[-2]
+    puts "\n#{BLUE}data#{WHITE}"
+    puts "Used: #{RED}#{used}#{WHITE} / Free: #{GREEN}#{free}#{WHITE}"
+    puts "#{BLUE}metadata#{WHITE}"
+    puts "Used: #{RED}#{meta_used}#{WHITE} / Total: #{YELLOW}#{meta_total}#{WHITE}"
   end
 end
