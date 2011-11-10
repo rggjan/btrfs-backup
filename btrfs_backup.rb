@@ -161,6 +161,12 @@ if __FILE__ == $0
   if commands.size == 0
     puts "Usage: ./btrfs_backup [--backup] [--delete] [/source/path] /target/path"
   else
+    if commands.include?(:delete)
+      delete_name = get_delete_name()
+      puts "\n#{BLUE}Deleting #{delete_name}#{WHITE}"
+      execute("btrfsctl -D #{delete_name} #{self_backup_dir}", :can_fail => true)
+    end
+
     if commands.include?(:backup)
       unless @source_dir.nil?
         puts "\n#{BLUE}Syncing from #{@source_dir} to #{@destination_dir}#{WHITE}"
@@ -180,33 +186,28 @@ if __FILE__ == $0
       increment_names()
     end
 
-    if commands.include?(:delete)
-      delete_name = get_delete_name()
-      puts "\n#{BLUE}Deleting #{delete_name}#{WHITE}"
-      execute("btrfsctl -D #{delete_name} #{self_backup_dir}", :can_fail => true)
+    # Status output
+    puts "\n#{BLUE}Self backups#{WHITE}"
+    get_list().each do |number, date|
+      puts "#{date} #{RED}=> #{RED}#{number}#{WHITE}"
     end
 
-    # Status output
     puts "\n#{BLUE}Status of #{@destination_dir}#{WHITE}"
-    stats = `btrfs fi df #{@destination_dir}`
-    puts stats
-    stats = stats.split("\n")
-
     mount_name = @destination_dir
     mount_name = mount_name[0...-1] unless mount_name[-1] != "/" or mount_name == "/"
-    mountpoint = `mount | grep "on #{mount_name} type btrfs"`.split(" ")[0]
-    real_mountpoint = "/dev/" + `ls -l #{mountpoint}`.split(" ")[-1].split("/")[-1]
-    puts "\n#{BLUE}Status of #{real_mountpoint}#{WHITE}"
-    system("btrfs fi show #{real_mountpoint}")
+    stats = `df -h #{mount_name}`.split("\n")[1].split
 
-    free = `df -h #{mount_name}`.split("\n")[1].split[3]
-    used = stats[0].split("=")[-1][0..-2]
-    meta = stats[3].split("=")
-    meta_used = meta[-1]
-    meta_total = meta[-2].split(",")[-2]
-    puts "\n#{BLUE}data#{WHITE}"
-    puts "Used: #{RED}#{used}#{WHITE} / Free: #{GREEN}#{free}#{WHITE}"
-    puts "#{BLUE}metadata#{WHITE}"
-    puts "Used: #{RED}#{meta_used}#{WHITE} / Total: #{YELLOW}#{meta_total}#{WHITE}"
+    free = stats[3]
+    used = stats[4][0..-2]
+    puts "Free: #{GREEN}#{free}#{WHITE} / Used: #{RED}#{used}%#{WHITE}"
+
+    if (commands.include?(:backup))
+      max_used = 80
+      if (used.to_i > max_used)
+        delete_name = get_delete_name()
+        puts "\n#{BLUE}Deleting #{delete_name}, used > #{max_used}%#{WHITE}"
+        execute("btrfsctl -D #{delete_name} #{self_backup_dir}", :can_fail => true)
+      end
+    end
   end
 end
