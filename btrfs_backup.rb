@@ -125,6 +125,7 @@ if __FILE__ == $0
   commands = Array.new
   leftover_args = Array.new
 
+  rsync_args = ""
   while args.size > 0
     argument = args.pop
     case argument
@@ -138,6 +139,8 @@ if __FILE__ == $0
       commands << :hostname
       @hostname = args.pop
       raise "Wrong hostname '#{@hostname}'" unless @hostname =~ /\A[a-zA-Z0-9]+\z/
+    when "--exclude"
+      rsync_args += " --exclude=#{args.pop} "
     else
       leftover_args << argument
     end
@@ -161,11 +164,10 @@ if __FILE__ == $0
     if commands.include?(:backup)
       unless @source_dir.nil?
         puts "\n#{BLUE}Syncing from #{@source_dir} to #{@destination_dir}#{WHITE}"
-        additional_options = ""
-        additional_options = " --exclude=/self_backups" if @dir == "/"
+        rsync_args += " --exclude=/self_backups " if @dir == "/"
         
         options = "rsync --archive --one-file-system --hard-links --inplace --numeric-ids --progress --verbose --delete --exclude=/self_backups"
-        options += additional_options
+        options += rsync_args
         options += " #{@source_dir} #{@destination_dir}backups/#{@hostname}"
         execute(options)
       end
