@@ -201,12 +201,15 @@ if __FILE__ == $0
     used = stats[4][0..-2]
     puts "Free: #{GREEN}#{free}#{WHITE} / Used: #{RED}#{used}%#{WHITE}"
 
-    if (commands.include?(:backup))
-      max_used = 80
+
+    if !commands.include?(:delete)
+      max_used = 90
       if (used.to_i > max_used)
-        delete_name = get_delete_name()
-        puts "\n#{BLUE}Deleting #{delete_name}, used > #{max_used}%#{WHITE}"
-        execute("btrfsctl -D #{delete_name} #{self_backup_dir}", :can_fail => true)
+        2.times do
+          delete_name = get_delete_name()
+          puts "\n#{BLUE}Deleting #{delete_name}, used > #{max_used}%#{WHITE}"
+          execute("btrfs subvolume delete #{self_backup_dir}#{delete_name}", :can_fail => true)
+        end
       end
     end
   end
