@@ -164,7 +164,7 @@ if __FILE__ == $0
     if commands.include?(:delete)
       delete_name = get_delete_name()
       puts "\n#{BLUE}Deleting #{delete_name}#{WHITE}"
-      execute("btrfsctl -D #{delete_name} #{self_backup_dir}", :can_fail => true)
+      execute("btrfs subvolume delete #{self_backup_dir}#{delete_name}", :can_fail => true)
     end
 
     if commands.include?(:backup)
@@ -172,7 +172,7 @@ if __FILE__ == $0
         puts "\n#{BLUE}Syncing from #{@source_dir} to #{@destination_dir}#{WHITE}"
         rsync_args += " --exclude=/self_backups " if @dir == "/"
         
-        options = "rsync --archive --one-file-system --hard-links --inplace --numeric-ids --progress --verbose --delete --exclude=/self_backups"
+        options = "rsync --archive --one-file-system --hard-links --inplace --numeric-ids --progress --verbose --delete --delete-excluded --exclude=/self_backups"
         options += rsync_args
         options += " #{@source_dir} #{@destination_dir}backups/#{@hostname}"
         execute(options)
@@ -182,7 +182,7 @@ if __FILE__ == $0
       puts "\n#{BLUE}Snapshotting #{self_backup_dir}#{WHITE}"
       date = `date +%F`.strip
       check_backup_dir()
-      execute("btrfsctl -s #{self_backup_dir}#{date}-backup.0 #{@destination_dir}", :can_fail => true) # TODO wrong btrfs
+      execute("btrfs subvolume snapshot -r #{@destination_dir} #{self_backup_dir}#{date}-backup.0", :can_fail => true) # TODO wrong btrfs
       increment_names()
     end
 
